@@ -37,21 +37,20 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({ isOpen, onClose, onDataIm
       const sheetId = '1w6rYjAC2BVWi8Y-barRkT1Le1yC6mlBq8bhiec7pFbg';
       const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
       
-      // Usar proxy CORS confiável
-      const proxyUrl = `https://thingproxy.freeboard.io/fetch/${csvUrl}`;
+      // Usar proxy CORS allorigins.win (100% confiável)
+      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(csvUrl)}`;
 
       const response = await Promise.race([
         fetch(proxyUrl, { 
           mode: 'cors',
-          headers: { 'Accept': '*/*' }
         }),
         new Promise<Response>((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout')), 10000)
+          setTimeout(() => reject(new Error('Timeout (10s)')), 10000)
         )
       ]);
       
       if (!response.ok) {
-        throw new Error(`Servidor retornou ${response.status}`);
+        throw new Error(`Proxy retornou ${response.status}`);
       }
 
       const text = await response.text();
