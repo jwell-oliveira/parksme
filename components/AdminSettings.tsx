@@ -34,10 +34,17 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({ isOpen, onClose, onDataIm
     setError('');
 
     try {
-      const response = await fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vR0XnfqtXdHKbMDLT7UqVoibhv32K7jkUfGdY_AMwGemPGLTnEpRTk2U0E3VdJVmNH6Zl5jp0uJ3jOR/export?format=xlsx');
+      const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR0XnfqtXdHKbMDLT7UqVoibhv32K7jkUfGdY_AMwGemPGLTnEpRTk2U0E3VdJVmNH6Zl5jp0uJ3jOR/export?format=xlsx';
+      const corsUrl = `https://cors-anywhere.herokuapp.com/${sheetUrl}`;
+      
+      const response = await fetch(corsUrl, {
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      });
 
       if (!response.ok) {
-        throw new Error('Falha ao conectar com a planilha');
+        throw new Error(`Erro ao conectar (${response.status}): Verifique se a planilha está acessível`);
       }
 
       const arrayBuffer = await response.arrayBuffer();
