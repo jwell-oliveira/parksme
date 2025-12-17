@@ -34,13 +34,13 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({ isOpen, onClose, onDataIm
     setError('');
 
     try {
-      // URL da planilha compartilhada
       const sheetId = '1w6rYjAC2BVWi8Y-barRkT1Le1yC6mlBq8bhiec7pFbg';
       
-      // Tentar múltiplos formatos e métodos
+      // Tentar via API local primeiro (Vercel), depois fallback direto
       const urls = [
+        `/api/sheets?sheetId=${sheetId}&format=csv`,
+        `/api/sheets?sheetId=${sheetId}&format=xlsx`,
         `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`,
-        `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=xlsx`,
       ];
 
       let response: Response | null = null;
@@ -48,26 +48,32 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({ isOpen, onClose, onDataIm
       let errors: string[] = [];
 
       for (const url of urls) {
-        const format = url.includes('csv') ? 'csv' : 'xlsx';
+        const format = url.includes('xlsx') ? 'xlsx' : 'csv';
         try {
-          response = await fetch(url, { 
-            mode: 'cors',
-            headers: { 'Accept': '*/*' }
-          });
+          response = await Promise.race([
+            fetch(url, { 
+              mode: 'cors',
+              headers: { 'Accept': '*/*' }
+            }),
+            new Promise<Response>((_, reject) => 
+              setTimeout(() => reject(new Error('Timeout (10s)')), 10000)
+            )
+          ]);
           
           if (response?.ok) {
             selectedFormat = format;
+            console.log(`✓ Conectado com sucesso usando ${url.includes('/api/') ? 'API' : 'direto'}`);
             break;
           } else {
-            errors.push(`${format}: ${response?.status}`);
+            errors.push(`${url}: ${response?.status}`);
           }
         } catch (err) {
-          errors.push(`${format}: ${(err as Error).message}`);
+          errors.push(`${url}: ${(err as Error).message}`);
         }
       }
 
       if (!response?.ok || !response) {
-        throw new Error(`Todas as tentativas falharam: ${errors.join(', ')}`);
+        throw new Error(`Todas as tentativas falharam:\n${errors.join('\n')}`);
       }
 
       let wb;
@@ -142,8 +148,9 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({ isOpen, onClose, onDataIm
         setError('Nenhum dado válido encontrado na planilha.');
       }
     } catch (err) {
-      console.error(err);
-      setError('Erro ao sincronizar dados. Verifique sua conexão.');
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.error('Erro detalhado:', errorMsg);
+      setError(`Falha: ${errorMsg}`);
     } finally {
       setIsProcessing(false);
     }
@@ -330,7 +337,7 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({ isOpen, onClose, onDataIm
                 <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
                   <p className="text-[11px] font-black text-slate-900 uppercase mb-3 tracking-widest">Fonte de Dados:</p>
                   <p className="text-[10px] text-slate-500 font-bold break-all">
-                    https://docs.google.com/spreadsheets/d/e/2PACX-1vR0XnfqtXdHKbMDLT7UqVoibhv32K7jkUfGdY_AMwGemPGLTnEpRTk2U0E3VdJVmNH6Zl5jp0uJ3jOR/export?format=xlsx
+                    https://docs.google.com/spreadsheets/d/1w6rYjAC2BVWi8Y-barRkT1Le1yC6mlBq8bhiec7pFbg/export?format=csv
                   </p>
                 </div>
               </div>
