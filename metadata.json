@@ -1,0 +1,6 @@
+
+{
+  "name": "PARK SME: Controle de Acesso Inteligente",
+  "description": "Sistema avançado de gestão de estacionamento com controle por placa, busca inteligente e importação de dados via planilha.",
+  "requestFramePermissions": []
+}
