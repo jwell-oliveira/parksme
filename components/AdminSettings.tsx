@@ -34,14 +34,14 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({ isOpen, onClose, onDataIm
     setError('');
 
     try {
-      const response = await fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vR0XnfqtXdHKbMDLT7UqVoibhv32K7jkUfGdY_AMwGemPGLTnEpRTk2U0E3VdJVmNH6Zl5jp0uJ3jOR/pubhtml');
+      const response = await fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vR0XnfqtXdHKbMDLT7UqVoibhv32K7jkUfGdY_AMwGemPGLTnEpRTk2U0E3VdJVmNH6Zl5jp0uJ3jOR/export?format=xlsx');
 
       if (!response.ok) {
         throw new Error('Falha ao conectar com a planilha');
       }
 
-      const html = await response.text();
-      const wb = XLSX.read(html, { type: 'string' });
+      const arrayBuffer = await response.arrayBuffer();
+      const wb = XLSX.read(arrayBuffer, { type: 'array' });
       const allVehicles: Vehicle[] = [];
 
       wb.SheetNames.forEach((sheetName) => {
@@ -292,7 +292,7 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({ isOpen, onClose, onDataIm
                 <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
                   <p className="text-[11px] font-black text-slate-900 uppercase mb-3 tracking-widest">Fonte de Dados:</p>
                   <p className="text-[10px] text-slate-500 font-bold break-all">
-                    https://docs.google.com/spreadsheets/d/e/2PACX-1vR0XnfqtXdHKbMDLT7UqVoibhv32K7jkUfGdY_AMwGemPGLTnEpRTk2U0E3VdJVmNH6Zl5jp0uJ3jOR/pubhtml
+                    https://docs.google.com/spreadsheets/d/e/2PACX-1vR0XnfqtXdHKbMDLT7UqVoibhv32K7jkUfGdY_AMwGemPGLTnEpRTk2U0E3VdJVmNH6Zl5jp0uJ3jOR/export?format=xlsx
                   </p>
                 </div>
               </div>
