@@ -35,57 +35,51 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({ isOpen, onClose, onDataIm
 
     try {
       const sheetId = '1w6rYjAC2BVWi8Y-barRkT1Le1yC6mlBq8bhiec7pFbg';
+      const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
       
-      // Tentar via API local primeiro (Vercel), depois fallback direto
-      const urls = [
-        `/api/sheets?sheetId=${sheetId}&format=csv`,
-        `/api/sheets?sheetId=${sheetId}&format=xlsx`,
-        `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`,
-      ];
+      // Usar proxy CORS confiável
+      const proxyUrl = `https://thingproxy.freeboard.io/fetch/${csvUrl}`;
 
-      let response: Response | null = null;
-      let selectedFormat = 'csv';
-      let errors: string[] = [];
+      const response = await Promise.race([
+        fetch(proxyUrl, { 
+          mode: 'cors',
+          headers: { 'Accept': '*/*' }
+        }),
+        new Promise<Response>((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), 10000)
+        )
+      ]);
+      
+      if (!response.ok) {
+        throw new Error(`Servidor retornou ${response.status}`);
+      }
 
-      for (const url of urls) {
-        const format = url.includes('xlsx') ? 'xlsx' : 'csv';
-        try {
-          response = await Promise.race([
-            fetch(url, { 
-              mode: 'cors',
-              headers: { 'Accept': '*/*' }
-            }),
-            new Promise<Response>((_, reject) => 
-              setTimeout(() => reject(new Error('Timeout (10s)')), 10000)
-            )
-          ]);
-          
-          if (response?.ok) {
-            selectedFormat = format;
-            console.log(`✓ Conectado com sucesso usando ${url.includes('/api/') ? 'API' : 'direto'}`);
-            break;
+      const text = await response.text();
+      
+      // Parse CSV manualmente
+      const lines = text.split('\n').filter(line => line.trim());
+      const data = lines.map(line => {
+        // Melhor parsing de CSV considerando aspas
+        const result = [];
+        let current = '';
+        let insideQuotes = false;
+        
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          if (char === '"') {
+            insideQuotes = !insideQuotes;
+          } else if (char === ',' && !insideQuotes) {
+            result.push(current.trim().replace(/^"|"$/g, ''));
+            current = '';
           } else {
-            errors.push(`${url}: ${response?.status}`);
+            current += char;
           }
-        } catch (err) {
-          errors.push(`${url}: ${(err as Error).message}`);
         }
-      }
+        result.push(current.trim().replace(/^"|"$/g, ''));
+        return result;
+      });
 
-      if (!response?.ok || !response) {
-        throw new Error(`Todas as tentativas falharam:\n${errors.join('\n')}`);
-      }
-
-      let wb;
-      if (selectedFormat === 'csv') {
-        const text = await response.text();
-        const lines = text.split('\n');
-        const data = lines.map(line => line.split(','));
-        wb = { SheetNames: ['Sheet1'], Sheets: { Sheet1: XLSX.utils.aoa_to_sheet(data) } };
-      } else {
-        const arrayBuffer = await response.arrayBuffer();
-        wb = XLSX.read(arrayBuffer, { type: 'array' });
-      }
+      const wb = { SheetNames: ['Sheet1'], Sheets: { Sheet1: XLSX.utils.aoa_to_sheet(data) } };
       const allVehicles: Vehicle[] = [];
 
       wb.SheetNames.forEach((sheetName) => {
@@ -149,8 +143,8 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({ isOpen, onClose, onDataIm
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
-      console.error('Erro detalhado:', errorMsg);
-      setError(`Falha: ${errorMsg}`);
+      console.error('❌ Erro:', errorMsg);
+      setError(`Erro: ${errorMsg}. Tente fazer upload manual.`);
     } finally {
       setIsProcessing(false);
     }
