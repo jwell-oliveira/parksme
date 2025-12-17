@@ -34,21 +34,52 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({ isOpen, onClose, onDataIm
     setError('');
 
     try {
-      const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR0XnfqtXdHKbMDLT7UqVoibhv32K7jkUfGdY_AMwGemPGLTnEpRTk2U0E3VdJVmNH6Zl5jp0uJ3jOR/export?format=xlsx';
-      const corsUrl = `https://cors-anywhere.herokuapp.com/${sheetUrl}`;
+      // URL da planilha compartilhada
+      const sheetId = '1w6rYjAC2BVWi8Y-barRkT1Le1yC6mlBq8bhiec7pFbg';
       
-      const response = await fetch(corsUrl, {
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      });
+      // Tentar múltiplos formatos e métodos
+      const urls = [
+        `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`,
+        `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=xlsx`,
+      ];
 
-      if (!response.ok) {
-        throw new Error(`Erro ao conectar (${response.status}): Verifique se a planilha está acessível`);
+      let response: Response | null = null;
+      let selectedFormat = 'csv';
+      let errors: string[] = [];
+
+      for (const url of urls) {
+        const format = url.includes('csv') ? 'csv' : 'xlsx';
+        try {
+          response = await fetch(url, { 
+            mode: 'cors',
+            headers: { 'Accept': '*/*' }
+          });
+          
+          if (response?.ok) {
+            selectedFormat = format;
+            break;
+          } else {
+            errors.push(`${format}: ${response?.status}`);
+          }
+        } catch (err) {
+          errors.push(`${format}: ${(err as Error).message}`);
+        }
       }
 
-      const arrayBuffer = await response.arrayBuffer();
-      const wb = XLSX.read(arrayBuffer, { type: 'array' });
+      if (!response?.ok || !response) {
+        throw new Error(`Todas as tentativas falharam: ${errors.join(', ')}`);
+      }
+
+      let wb;
+      if (selectedFormat === 'csv') {
+        const text = await response.text();
+        const lines = text.split('\n');
+        const data = lines.map(line => line.split(','));
+        wb = { SheetNames: ['Sheet1'], Sheets: { Sheet1: XLSX.utils.aoa_to_sheet(data) } };
+      } else {
+        const arrayBuffer = await response.arrayBuffer();
+        wb = XLSX.read(arrayBuffer, { type: 'array' });
+      }
       const allVehicles: Vehicle[] = [];
 
       wb.SheetNames.forEach((sheetName) => {
